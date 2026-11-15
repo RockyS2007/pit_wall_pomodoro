@@ -1,0 +1,29 @@
+[package]
+name = "pit-wall-pomodoro"
+version = "0.1.0"
+description = "A racing-themed pomodoro study timer with a desktop car pet"
+edition = "2021"
+license = "MIT"
+
+[lib]
+name = "pit_wall_pomodoro_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["macos-private-api"] }
+tauri-plugin-store = "2"
+tauri-plugin-notification = "2"
+tauri-plugin-autostart = "2"
+tauri-plugin-global-shortcut = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = "s"
+panic = "abort"
+strip = true
