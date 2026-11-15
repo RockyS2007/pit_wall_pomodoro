@@ -10,6 +10,23 @@ everything else, and its tires change with your local weather.
 | Cloudy | Medium | Yellow |
 | Sunny / clear | Soft | Red |
 
+## Install (macOS, Apple Silicon)
+
+The ready-made installer is for Apple Silicon Macs (M1 and later). On other platforms, build it
+from source (see [Running it](#running-it)).
+
+1. Download the `.dmg` from the [Releases page](https://github.com/RockyS2007/pit_wall_pomodoro/releases).
+2. Open it and drag **Pit Wall Pomodoro** into **Applications**.
+3. The app is not signed, so macOS blocks it the first time. Try to open it once, then go to
+   **System Settings → Privacy & Security**, scroll down to the message about Pit Wall Pomodoro,
+   and click **Open Anyway**. On older macOS versions, right-click the app and choose **Open** instead.
+
+Or, in Terminal, clear the download flag and then open the app normally:
+
+```sh
+xattr -dr com.apple.quarantine "/Applications/Pit Wall Pomodoro.app"
+```
+
 ## Using it
 
 - **Drag the car** anywhere. It remembers its spot, and comes back on screen if a monitor is unplugged.
@@ -39,7 +56,7 @@ npm run tauri dev      # run the app
 npm run tauri build    # build the installer (src-tauri/target/release/bundle)
 ```
 
-The macOS build is unsigned. The first time you open it, right-click the app and choose Open.
+The macOS build is unsigned. To open it the first time, follow step 3 under [Install](#install-macos-apple-silicon).
 
 ## Tests
 
