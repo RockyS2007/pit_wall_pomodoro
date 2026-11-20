@@ -1,6 +1,6 @@
 [package]
 name = "pit-wall-pomodoro"
-version = "0.1.0"
+version = "0.1.1"
 description = "A racing-themed pomodoro study timer with a desktop car pet"
 edition = "2021"
 license = "MIT"

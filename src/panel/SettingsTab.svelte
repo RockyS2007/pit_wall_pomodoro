@@ -173,7 +173,7 @@
     Shortcut
     <input type="text" value={s.hotkey} disabled={!s.hotkeyEnabled} onchange={(e) => update({ hotkey: e.currentTarget.value })} />
   </label>
-  <button class="version" onclick={() => (versionClicks += 1)} data-testid="version">Pit Wall Pomodoro 0.1.0</button>
+  <button class="version" onclick={() => (versionClicks += 1)} data-testid="version">Pit Wall Pomodoro 0.1.1</button>
 </section>
 
 {#if debugOpen}
