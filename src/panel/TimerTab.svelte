@@ -1,11 +1,12 @@
 <script lang="ts">
   import { formatClock, formatTemp, PHASE_LABEL } from '../core/format';
+  import { LIMITS } from '../core/settings';
   import { isPaused, progress, remaining } from '../core/timer';
   import { COMPOUND_INFO } from '../core/tires';
   import { describeWeather } from '../core/weather';
   import { unlockAudio } from '../lib/sound';
   import TireIcon from './TireIcon.svelte';
-  import { app, dispatch, update } from './state.svelte';
+  import { app, dispatch, setPhaseMinutes, update } from './state.svelte';
 
   let { openSettings }: { openSettings: () => void } = $props();
 
@@ -27,6 +28,52 @@
   $effect(() => {
     if (!editing) objective = snap.settings.objective;
   });
+
+  // Click the digits to change the length of this kind of phase. It is the same
+  // setting as in Settings, so the two always agree.
+  const lengthKey = $derived(
+    t.phase === 'pitStop' ? 'pitStopMin' : t.phase === 'redFlag' ? 'redFlagMin' : 'stintMin',
+  );
+  const lengthNow = $derived(snap.settings[lengthKey]);
+  const limits = $derived(LIMITS[lengthKey]);
+  const lengthLabel = $derived(
+    t.phase === 'pitStop' ? 'Pit stop length' : t.phase === 'redFlag' ? 'Podium length' : 'Stint length',
+  );
+  let editingClock = $state(false);
+  let draft = $state('');
+  let inputEl = $state<HTMLInputElement | null>(null);
+
+  $effect(() => {
+    if (editingClock && inputEl) {
+      inputEl.focus();
+      inputEl.select();
+    }
+  });
+
+  function startEdit() {
+    draft = String(lengthNow);
+    editingClock = true;
+  }
+
+  function commit() {
+    if (!editingClock) return;
+    editingClock = false;
+    // Whole minutes; "25:00" is accepted too and means 25 minutes.
+    const match = /^\s*(\d{1,3})(?::\d{1,2})?\s*$/.exec(draft);
+    if (!match) return;
+    const minutes = Math.min(limits.max, Math.max(limits.min, Number(match[1])));
+    if (minutes !== lengthNow) setPhaseMinutes(lengthKey, minutes);
+  }
+
+  function onEditKey(event: KeyboardEvent) {
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      commit();
+    } else if (event.key === 'Escape') {
+      event.preventDefault();
+      editingClock = false;
+    }
+  }
 
   function primary() {
     unlockAudio();
@@ -51,7 +98,33 @@
     {/if}
   </div>
 
-  <div class="clock" data-testid="clock" role="timer" aria-live="off">{formatClock(left)}</div>
+  <div class="clockwrap" role="timer" aria-live="off">
+    {#if editingClock}
+      <label class="clock-edit">
+        <input
+          bind:this={inputEl}
+          bind:value={draft}
+          class="clock-input"
+          type="text"
+          inputmode="numeric"
+          maxlength="6"
+          autocomplete="off"
+          aria-label="{lengthLabel} in minutes"
+          data-testid="clock-input"
+          onkeydown={onEditKey}
+          onblur={commit}
+        />
+        <span class="unit">min</span>
+      </label>
+      <div class="muted edit-hint" data-testid="clock-hint">
+        {lengthLabel}, {limits.min} to {limits.max} min. Enter to save, Esc to cancel.
+      </div>
+    {:else}
+      <button class="clock" data-testid="clock" onclick={startEdit} title="Click to change the {lengthLabel.toLowerCase()}">
+        {formatClock(left)}
+      </button>
+    {/if}
+  </div>
   <div class="bar" aria-hidden="true"><div style="width: {done * 100}%"></div></div>
 
   <div class="controls">
@@ -172,12 +245,62 @@
   .dots i.now {
     border-color: var(--text);
   }
-  .clock {
+  .clockwrap {
+    display: grid;
+    gap: 4px;
+    justify-items: center;
+  }
+  .clock,
+  .clock-input {
     font: 800 clamp(56px, 22vw, 84px) / 1 ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
     font-variant-numeric: tabular-nums;
     text-align: center;
     letter-spacing: -0.02em;
+    color: var(--text);
+  }
+  .clock {
+    width: 100%;
+    border: 1px solid transparent;
+    background: transparent;
+    border-radius: var(--radius);
     padding: 4px 0;
+    cursor: text;
+    position: relative;
+  }
+  .clock:hover:not(:disabled) {
+    background: var(--card);
+    border-color: var(--line);
+  }
+  .clock:hover::after {
+    content: '✎';
+    position: absolute;
+    right: 10px;
+    top: 8px;
+    font: 400 16px/1 system-ui, sans-serif;
+    color: var(--muted);
+  }
+  .clock-edit {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+  }
+  .clock-input {
+    width: 3.1ch;
+    background: var(--bg);
+    border: 2px solid var(--accent);
+    border-radius: var(--radius);
+    padding: 4px 6px;
+  }
+  .clock-input:focus-visible {
+    outline: none;
+  }
+  .unit {
+    font-size: 18px;
+    color: var(--muted);
+  }
+  .edit-hint {
+    font-size: 12px;
+    text-align: center;
   }
   .bar {
     height: 6px;

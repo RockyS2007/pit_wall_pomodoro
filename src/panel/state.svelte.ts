@@ -3,7 +3,7 @@
  * renders snapshots published by the engine (which lives in the pet window)
  * and sends commands back.
  */
-import type { Command, Snapshot, SoundName } from '../engine/engine';
+import type { Command, PhaseLengthKey, Snapshot, SoundName } from '../engine/engine';
 import type { Settings } from '../core/settings';
 import { on, send } from '../lib/platform';
 import { playSound } from '../lib/sound';
@@ -18,6 +18,12 @@ export function update(patch: Partial<Settings>): void {
   // Show the change at once; the engine's snapshot confirms it a moment later.
   if (app.snap) app.snap = { ...app.snap, settings: { ...app.snap.settings, ...patch } };
   dispatch({ type: 'updateSettings', patch });
+}
+
+/** Set a phase length from the timer face (same setting as in Settings). */
+export function setPhaseMinutes(key: PhaseLengthKey, minutes: number): void {
+  if (app.snap) app.snap = { ...app.snap, settings: { ...app.snap.settings, [key]: minutes } };
+  dispatch({ type: 'setPhaseMinutes', key, minutes });
 }
 
 export async function connect(): Promise<() => void> {

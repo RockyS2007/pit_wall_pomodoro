@@ -33,6 +33,7 @@ xattr -dr com.apple.quarantine "/Applications/Pit Wall Pomodoro.app"
 - **Click the car** to open or close the Pit Wall (timer, weather, stats, settings). Closing the Pit Wall never stops the timer.
 - **Right-click the car** for Start/Pause, Skip, Open Pit Wall, Hide car, Quit. Click the Dock icon to bring a hidden car back.
 - **Hover the car** for time left, phase, and the tire compound with the reason.
+- **Click the countdown digits** in the Pit Wall to change the length of the current kind of phase (stint, pit stop or podium) right there, in whole minutes. Enter saves, Esc cancels. It is the same setting as in Settings, and if a phase is already running, the time you have done is kept.
 - A focus session is a **stint** (25 min). A short break is a **pit stop** (5 min). After the last stint of a **Grand Prix** (4 by default, anywhere from 1 to 8) you get the chequered flag and a long **podium** break (20 min).
 - **Box box** ends the current stint early, counts it, and starts the pit stop. **Skip** moves on without counting the stint.
 - On the car: speed lines mean a stint is running, a chequered flag is the final minute, a yellow flag is paused, the crew and jack are a pit stop, a trophy and chequered flag are the podium break after a full Grand Prix. Tires wear visibly through a stint and are fresh after the stop.

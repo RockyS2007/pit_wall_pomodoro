@@ -229,6 +229,27 @@ export function tick(state: TimerState, config: TimerConfig, now: number): Timer
   return advance(state, config, now, 'complete', config.autoStartNext);
 }
 
+/** Least time left after changing the length of a phase that is already under way. */
+const MIN_LEFT_AFTER_RESIZE_MS = 60_000;
+
+/**
+ * Change the length of the phase in progress, keeping the time already used.
+ * A 25 minute stint with 10 minutes done, changed to 50, has 40 minutes left.
+ * If the new length is shorter than what is already done, one minute is left
+ * rather than ending the phase on the spot.
+ */
+export function resizePhase(state: TimerState, newDurationMs: number, now: number): TimerState {
+  if (state.phase === 'idle' || newDurationMs <= 0) return state;
+  const elapsed = Math.max(0, state.durationMs - remaining(state, now));
+  const left = Math.max(MIN_LEFT_AFTER_RESIZE_MS, newDurationMs - elapsed);
+  return {
+    ...state,
+    durationMs: elapsed + left,
+    remainingMs: left,
+    endsAt: state.running ? now + left : null,
+  };
+}
+
 /** Keep an idle timer in step with changed durations. */
 export function applyConfig(state: TimerState, config: TimerConfig): TimerState {
   if (state.phase !== 'idle') return state;

@@ -326,6 +326,54 @@ describe('sleep / wake and clock jumps', () => {
   });
 });
 
+describe('resizePhase: changing the length of the phase in progress', () => {
+  it('keeps the time already used (running)', () => {
+    const s = t.start(t.createTimer(config), config, T0).state;
+    const at = T0 + 10 * MIN;
+    const r = t.resizePhase(s, 50 * MIN, at);
+    expect(t.remaining(r, at)).toBe(40 * MIN);
+    expect(r.durationMs).toBe(50 * MIN);
+    expect(r.endsAt).toBe(T0 + 50 * MIN);
+    expect(t.progress(r, at)).toBeCloseTo(0.2);
+  });
+
+  it('keeps the time already used (paused) and stays paused', () => {
+    const s = t.pause(t.start(t.createTimer(config), config, T0).state, T0 + 10 * MIN).state;
+    const r = t.resizePhase(s, 15 * MIN, T0 + 30 * MIN);
+    expect(r.running).toBe(false);
+    expect(r.endsAt).toBeNull();
+    expect(r.remainingMs).toBe(5 * MIN);
+    expect(r.durationMs).toBe(15 * MIN);
+  });
+
+  it('leaves one minute when the new length is shorter than what is done', () => {
+    const s = t.start(t.createTimer(config), config, T0).state;
+    const at = T0 + 20 * MIN;
+    const r = t.resizePhase(s, 10 * MIN, at);
+    expect(t.remaining(r, at)).toBe(MIN);
+    expect(r.endsAt).toBe(at + MIN);
+    expect(t.progress(r, at)).toBeLessThan(1);
+    // And the phase then ends normally.
+    expect(t.tick(r, config, at + MIN).state.phase).toBe('pitStop');
+  });
+
+  it('works on a break, and does nothing when idle', () => {
+    const brk = finishPhase(t.start(t.createTimer(config), config, T0).state).state;
+    const at = brk.endsAt! - 2 * MIN; // 3 of 5 minutes used
+    const r = t.resizePhase(brk, 10 * MIN, at);
+    expect(t.remaining(r, at)).toBe(7 * MIN);
+    const idle = t.createTimer(config);
+    expect(t.resizePhase(idle, 50 * MIN, T0)).toBe(idle);
+  });
+
+  it('keeps focus accounting right after an extension', () => {
+    const s = t.start(t.createTimer(config), config, T0).state;
+    const r = t.resizePhase(s, 40 * MIN, T0 + 10 * MIN);
+    const done = t.tick(r, config, r.endsAt!);
+    expect(done.events).toContainEqual({ type: 'focus', ms: 40 * MIN, endedAt: T0 + 40 * MIN });
+  });
+});
+
 describe('auto-start off and config changes', () => {
   const manual = { ...config, autoStartNext: false };
 

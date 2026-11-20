@@ -127,6 +127,56 @@ describe('engine', () => {
     expect(engine.snapshot().stats.days[dayKey(T0)].grandPrix).toBe(1);
   });
 
+  it('setting a length from the timer face updates the setting and an idle clock', async () => {
+    const { engine } = await boot();
+    expect(engine.snapshot().timer.remainingMs).toBe(25 * MIN);
+    engine.dispatch({ type: 'setPhaseMinutes', key: 'stintMin', minutes: 50 });
+    const snap = engine.snapshot();
+    expect(snap.settings.stintMin).toBe(50);
+    expect(snap.timer.remainingMs).toBe(50 * MIN);
+    // Out-of-range and rubbish values are clamped or ignored.
+    engine.dispatch({ type: 'setPhaseMinutes', key: 'stintMin', minutes: 500 });
+    expect(engine.snapshot().settings.stintMin).toBe(90);
+    engine.dispatch({ type: 'setPhaseMinutes', key: 'stintMin', minutes: Number.NaN });
+    expect(engine.snapshot().settings.stintMin).toBe(90);
+    engine.dispatch({ type: 'setPhaseMinutes', key: 'nonsense' as never, minutes: 30 });
+    expect(engine.snapshot().settings.stintMin).toBe(90);
+  });
+
+  it('changing the stint length mid-stint keeps the time already done and saves the setting', async () => {
+    const disk = new Map<string, unknown>();
+    const { engine, state } = await boot(disk);
+    engine.dispatch({ type: 'start' });
+    await run(engine, state, 10 * MIN);
+    engine.dispatch({ type: 'setPhaseMinutes', key: 'stintMin', minutes: 50 });
+    let snap = engine.snapshot();
+    expect(snap.timer.endsAt).toBe(T0 + 50 * MIN);
+    expect(snap.settings.stintMin).toBe(50);
+    // The pit stop and later stints use the new setting; the break length is untouched.
+    await run(engine, state, 40 * MIN);
+    snap = engine.snapshot();
+    expect(snap.timer.phase).toBe('pitStop');
+    expect(snap.timer.durationMs).toBe(5 * MIN);
+    await run(engine, state, 5 * MIN);
+    expect(engine.snapshot().timer.durationMs).toBe(50 * MIN);
+    // Survives a restart.
+    const again = await boot(disk);
+    expect(again.engine.snapshot().settings.stintMin).toBe(50);
+  });
+
+  it('editing a different kind of length mid-stint changes the setting only', async () => {
+    const { engine, state } = await boot();
+    engine.dispatch({ type: 'start' });
+    await run(engine, state, 5 * MIN);
+    const endsAt = engine.snapshot().timer.endsAt;
+    engine.dispatch({ type: 'setPhaseMinutes', key: 'pitStopMin', minutes: 10 });
+    const snap = engine.snapshot();
+    expect(snap.settings.pitStopMin).toBe(10);
+    expect(snap.timer.endsAt).toBe(endsAt);
+    await run(engine, state, 20 * MIN);
+    expect(engine.snapshot().timer.durationMs).toBe(10 * MIN);
+  });
+
   it('mute and notification switches are respected', async () => {
     const { engine, state } = await boot();
     engine.dispatch({ type: 'updateSettings', patch: { soundOn: false, notifications: false } });

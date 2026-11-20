@@ -11,6 +11,7 @@ import {
   sanitizeSettings,
   defaultSettings,
   timerConfig,
+  LIMITS,
   type Settings,
 } from '../core/settings';
 import * as timer from '../core/timer';
@@ -67,6 +68,15 @@ export interface Snapshot {
   ready: boolean;
 }
 
+/** The three settings that hold a phase length, in minutes. */
+export type PhaseLengthKey = 'stintMin' | 'pitStopMin' | 'redFlagMin';
+
+const PHASE_KEY: Record<Exclude<TimerState['phase'], 'idle'>, PhaseLengthKey> = {
+  stint: 'stintMin',
+  pitStop: 'pitStopMin',
+  redFlag: 'redFlagMin',
+};
+
 export type Command =
   | { type: 'toggle' }
   | { type: 'start' }
@@ -75,6 +85,8 @@ export type Command =
   | { type: 'boxBox' }
   | { type: 'reset' }
   | { type: 'updateSettings'; patch: Partial<Settings> }
+  /** Set a phase length from the timer face; also resizes that phase if it is the one running. */
+  | { type: 'setPhaseMinutes'; key: PhaseLengthKey; minutes: number }
   | { type: 'refreshWeather' }
   | { type: 'debugWeather'; preset: DebugWeather | null }
   | { type: 'resetStats' }
@@ -251,6 +263,9 @@ export class Engine {
       case 'updateSettings':
         this.updateSettings(cmd.patch);
         break;
+      case 'setPhaseMinutes':
+        this.setPhaseMinutes(cmd.key, cmd.minutes);
+        break;
       case 'refreshWeather':
         void this.refreshWeather();
         break;
@@ -317,6 +332,20 @@ export class Engine {
     }
     if (s.notifications && event.cause !== 'start') this.host.notify(title, body);
     if (s.soundOn && sound) this.host.playSound(sound, s.volume);
+  }
+
+  private setPhaseMinutes(key: PhaseLengthKey, minutes: number): void {
+    if (!(key in LIMITS) || !Number.isFinite(minutes)) return;
+    const { min, max } = LIMITS[key];
+    const value = Math.min(max, Math.max(min, Math.round(minutes)));
+    const phase = this.timer.phase;
+    // Resize the running (or paused) phase only if it is the kind being edited.
+    if (phase !== 'idle' && PHASE_KEY[phase] === key) {
+      this.timer = timer.resizePhase(this.timer, value * 60_000, this.host.now());
+      void this.host.save(KEYS.timer, this.timer);
+    }
+    // updateSettings saves, re-fits an idle timer to the new length and publishes.
+    this.updateSettings({ [key]: value });
   }
 
   private updateSettings(patch: Partial<Settings>): void {

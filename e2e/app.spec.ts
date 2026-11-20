@@ -180,6 +180,73 @@ test('stints per Grand Prix changes the lap count on the panel and the car', asy
   await expect(panel.getByTestId('phase')).toHaveText('Podium');
 });
 
+test('click the timer digits to change the length; Settings and the car follow', async ({ context }) => {
+  const { pet, panel } = await open(context);
+  await expect(panel.getByTestId('clock')).toHaveText('25:00');
+  await panel.getByTestId('clock').click();
+  await expect(panel.getByTestId('clock-input')).toBeFocused();
+  await expect(panel.getByTestId('clock-input')).toHaveValue('25');
+  await expect(panel.getByTestId('clock-hint')).toContainText('Stint length, 10 to 90 min');
+  await panel.getByTestId('clock-input').fill('50');
+  await panel.getByTestId('clock-input').press('Enter');
+  await expect(panel.getByTestId('clock')).toHaveText('50:00');
+  await panel.getByRole('tab', { name: 'Settings' }).click();
+  await expect(panel.getByTestId('stint-min')).toHaveValue('50');
+  // And the other way round: a change in Settings shows on the clock.
+  await panel.getByTestId('stint-min').fill('30');
+  await panel.getByTestId('stint-min').blur();
+  await panel.getByRole('tab', { name: 'Timer' }).click();
+  await expect(panel.getByTestId('clock')).toHaveText('30:00');
+
+  // Escape cancels, a bad entry changes nothing, "mm:ss" counts as minutes, out of range is clamped.
+  await panel.getByTestId('clock').click();
+  await panel.getByTestId('clock-input').fill('77');
+  await panel.getByTestId('clock-input').press('Escape');
+  await expect(panel.getByTestId('clock')).toHaveText('30:00');
+  await panel.getByTestId('clock').click();
+  await panel.getByTestId('clock-input').fill('abc');
+  await panel.getByTestId('clock-input').press('Enter');
+  await expect(panel.getByTestId('clock')).toHaveText('30:00');
+  await panel.getByTestId('clock').click();
+  await panel.getByTestId('clock-input').fill('40:00');
+  await panel.getByTestId('clock-input').press('Enter');
+  await expect(panel.getByTestId('clock')).toHaveText('40:00');
+  await panel.getByTestId('clock').click();
+  await panel.getByTestId('clock-input').fill('200');
+  await panel.getByTestId('clock-input').press('Enter');
+  await expect(panel.getByTestId('clock')).toHaveText('90:00');
+
+  // Clicking away saves, and mid-stint the time already done is kept.
+  await panel.getByTestId('clock').click();
+  await panel.getByTestId('clock-input').fill('25');
+  await panel.getByRole('button', { name: 'Reset' }).click({ force: true });
+  await expect(panel.getByTestId('clock')).toHaveText('25:00');
+  await panel.getByTestId('primary').click();
+  await panel.waitForTimeout(1200);
+  await panel.getByTestId('clock').click();
+  await expect(panel.getByTestId('clock-hint')).toContainText('Stint length');
+  await panel.getByTestId('clock-input').fill('50');
+  await panel.getByTestId('clock-input').press('Enter');
+  await expect(panel.getByTestId('clock')).toHaveText(/4[89]:\d\d/);
+  await expect(pet.locator('.pill text')).toHaveText(/4[89]:\d\d/);
+});
+
+test('editing during a pit stop changes the pit stop length', async ({ context }) => {
+  const { panel } = await open(context);
+  await panel.getByTestId('primary').click();
+  await panel.getByRole('button', { name: 'Box box' }).click();
+  await expect(panel.getByTestId('phase')).toHaveText('Pit stop');
+  await panel.getByTestId('clock').click();
+  await expect(panel.getByTestId('clock-input')).toHaveValue('5');
+  await expect(panel.getByTestId('clock-hint')).toContainText('Pit stop length, 2 to 20 min');
+  await panel.getByTestId('clock-input').fill('10');
+  await panel.getByTestId('clock-input').press('Enter');
+  await expect(panel.getByTestId('clock')).toHaveText(/(10:00|09:5\d)/);
+  await panel.getByRole('tab', { name: 'Settings' }).click();
+  await expect(panel.getByTestId('pit-min')).toHaveValue('10');
+  await expect(panel.getByTestId('stint-min')).toHaveValue('25');
+});
+
 test('panel is usable at its minimum size', async ({ context }) => {
   const { panel } = await open(context);
   await panel.setViewportSize({ width: 320, height: 440 });
